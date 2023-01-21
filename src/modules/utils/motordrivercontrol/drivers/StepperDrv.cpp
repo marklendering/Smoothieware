@@ -6,6 +6,7 @@
 #include "TMC21X/TMC21X.h"
 #include "TMC220X/TMC220X.h"
 #include "TMC26X/TMC26X.h"
+#include "TMC4671_TMC6100.h"
 
 #include <map>
 
@@ -31,4 +32,4 @@ void StepperDrv::get_debug_info(StreamOutput *stream){
 bool StepperDrv::set_raw_register(StreamOutput *stream, uint32_t reg, uint32_t val){ return false; };
 bool StepperDrv::check_alarm(){ return false; };
 
-void StepperDrv::set_chip_type(StepstickParameters::CHIP_TYPE chip) { chip_type= chip; }
+void StepperDrv::set_chip_type(DriveParameters::CHIP_TYPE chip) { chip_type= chip; }

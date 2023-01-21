@@ -20,6 +20,7 @@
 #include "drivers/TMC21X/TMC21X.h"
 #include "drivers/TMC220X/TMC220X.h"
 #include "drivers/TMC26X/TMC26X.h"
+#include "drivers/TMC4671_TMC6100/TMC4671_TMC6100.h"
 #include "drivers/DRV8711/drv8711.h"
 
 #include <string>
@@ -108,20 +109,23 @@ bool MotorDriverControl::config_module(uint16_t cs)
     using std::placeholders::_3;
 
     if(str == "DRV8711") {
-        chip= StepstickParameters::CHIP_TYPE::DRV8711;
+        chip= DriveParameters::CHIP_TYPE::DRV8711;
         DRV= new DRV8711DRV(std::bind( &MotorDriverControl::sendSPI, this, _1, _2, _3), axis);
     }else if(str == "TMC2130") {
-        chip= StepstickParameters::CHIP_TYPE::TMC2130;
+        chip= DriveParameters::CHIP_TYPE::TMC2130;
         DRV= new TMC21X(std::bind( &MotorDriverControl::sendSPI, this, _1, _2, _3), axis);
     }else if(str == "TMC2208") {
-        chip= StepstickParameters::CHIP_TYPE::TMC2208;
+        chip= DriveParameters::CHIP_TYPE::TMC2208;
         DRV= new TMC220X(std::bind( &MotorDriverControl::sendUART, this, _1, _2, _3), axis);
     }else if(str == "TMC2209") {
-        chip= StepstickParameters::CHIP_TYPE::TMC2209;
+        chip= DriveParameters::CHIP_TYPE::TMC2209;
         DRV= new TMC220X(std::bind( &MotorDriverControl::sendUART, this, _1, _2, _3), axis);
     }else if(str == "TMC2660") {
-        chip= StepstickParameters::CHIP_TYPE::TMC2660;
+        chip= DriveParameters::CHIP_TYPE::TMC2660;
         DRV= new TMC26X(std::bind( &MotorDriverControl::sendSPI, this, _1, _2, _3), axis);
+    }else if(str == "TMC4671_TMC6100") {
+        chip= DriveParameters::CHIP_TYPE::TMC4671_TMC6100;
+        DRV= new TMC4671_TMC6100(std::bind( &MotorDriverControl::sendCtrlSPI, this, _1, _2, _3), axis);
     }else{
         printf("MotorDriverControl %c ERROR: Unknown chip type: %s\n", axis, str.c_str());
         return false;
@@ -131,7 +135,7 @@ bool MotorDriverControl::config_module(uint16_t cs)
     DRV->set_chip_type(chip);
     
     //Configure soft UART
-    if(DRV->connection_method == StepstickParameters::UART) {
+    if(DRV->connection_method == DriveParameters::UART) {
     		
         //select TX and RX pins
         sw_uart_tx_pin = new Pin();
@@ -174,17 +178,19 @@ bool MotorDriverControl::config_module(uint16_t cs)
         }
 
         this->serial->baud(sw_uart_baudrate);
-    } else if(DRV->connection_method == StepstickParameters::SPI ) {
+    } else if(DRV->connection_method == DriveParameters::SPI ) {
         //Configure SPI
     		
-        //select chip select pin
-        spi_cs_pin = new Pin();
-        spi_cs_pin->from_string(THEKERNEL->config->value( motor_driver_control_checksum, cs, spi_cs_pin_checksum)->by_default("nc")->as_string())->as_output();
-        if(!spi_cs_pin->connected()) {
-            printf("MotorDriverControl %c ERROR: chip select not defined\n", axis);
-            return false; // if not defined then we can't use this instance
+        if(DRV->chip_type != DriveParameters::TMC4671_TMC6100) {    
+            //select chip select pin
+            spi_cs_pin = new Pin();
+            spi_cs_pin->from_string(THEKERNEL->config->value( motor_driver_control_checksum, cs, spi_cs_pin_checksum)->by_default("nc")->as_string())->as_output();
+            if(!spi_cs_pin->connected()) {
+                printf("MotorDriverControl %c ERROR: drive chip select not defined\n", axis);
+                return false; // if not defined then we can't use this instance
+            }
+            spi_cs_pin->set(1);
         }
-        spi_cs_pin->set(1);
 
         // select which SPI channel to use
         int spi_channel = THEKERNEL->config->value(motor_driver_control_checksum, cs, spi_channel_checksum)->by_default(1)->as_number();
@@ -251,9 +257,9 @@ bool MotorDriverControl::config_module(uint16_t cs)
     }
 
     //finish driver setup
-    if(DRV->connection_method== StepstickParameters::UART) {
+    if(DRV->connection_method== DriveParameters::UART) {
         printf("MotorDriverControl INFO: configured motor %c (%d): as %s, tx: %04X, rx: %04X\n", axis, id, THEKERNEL->config->value( motor_driver_control_checksum, cs, chip_checksum)->by_default("")->as_string().c_str(), (sw_uart_tx_pin->port_number<<8)|sw_uart_tx_pin->pin, (sw_uart_rx_pin->port_number<<8)|sw_uart_rx_pin->pin);
-    } else {
+    } else if(DRV->chip_type != DriveParameters::TMC4671_TMC6100) {
         printf("MotorDriverControl INFO: configured motor %c (%d): as %s, cs: %04X\n", axis, id, THEKERNEL->config->value( motor_driver_control_checksum, cs, chip_checksum)->by_default("")->as_string().c_str(), (spi_cs_pin->port_number<<8)|spi_cs_pin->pin);
     }
 
@@ -487,6 +493,15 @@ int MotorDriverControl::sendSPI(uint8_t *b, int cnt, uint8_t *r)
         r[i]= spi->write(b[i]);
     }
     spi_cs_pin->set(1);
+    return cnt;
+}
+
+// Called by the drivers codes to send and receive SPI data to/from the chip
+int MotorDriverControl::sendCtrlSPI(uint8_t *b, int cnt, uint8_t *r)
+{
+    for (int i = 0; i < cnt; ++i) {
+        r[i]= spi->write(b[i]);
+    }
     return cnt;
 }
 

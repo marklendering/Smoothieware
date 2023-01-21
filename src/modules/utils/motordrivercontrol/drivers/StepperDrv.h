@@ -5,7 +5,7 @@
 
 #include <map>
 
-namespace StepstickParameters {
+namespace DriveParameters {
     enum Connection_Methods {
             UART,
             SPI
@@ -16,14 +16,17 @@ namespace StepstickParameters {
         TMC2130,
         TMC2208,
         TMC2209,
-        TMC2660
+        TMC2660,
+        TMC4671_TMC6100
     };
+
 }
 
 class DRV8711DRV;
 class TMC21X;
 class TMC220X;
 class TMC26X;
+class TMC4671_TMC6100;
 
 class StreamOutput;
 
@@ -50,10 +53,10 @@ class StepperDrv{
         
         virtual void get_debug_info(StreamOutput *stream);
         
-        virtual void set_chip_type(StepstickParameters::CHIP_TYPE);
+        virtual void set_chip_type(DriveParameters::CHIP_TYPE);
         
-        StepstickParameters::Connection_Methods connection_method;
-        StepstickParameters::CHIP_TYPE chip_type;
+        DriveParameters::Connection_Methods connection_method;
+        DriveParameters::CHIP_TYPE chip_type;
         
     protected:
         bool write_only = false;

@@ -20,6 +20,7 @@ class DRV8711DRV;
 class TMC21X;
 class TMC220X;
 class TMC26X;
+class TMC4671_TMC6100;
 
 class StreamOutput;
 
@@ -50,6 +51,7 @@ class MotorDriverControl : public Module {
 
         void enable(bool on);
         int sendSPI(uint8_t *b, int cnt, uint8_t *r);
+        int sendCtrlSPI(uint8_t *b, int cnt, uint8_t *r);
         int sendUART(uint8_t *b, int cnt, uint8_t *r);
         
         BufferedSoftSerial *serial;
@@ -66,7 +68,7 @@ class MotorDriverControl : public Module {
             };
         };
 
-        StepstickParameters::CHIP_TYPE chip;
+        DriveParameters::CHIP_TYPE chip;
         
         // one of these drivers
         //DRV8711DRV *drv8711;

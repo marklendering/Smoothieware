@@ -644,7 +644,7 @@
  */
 TMC220X::TMC220X(std::function<int(uint8_t *b, int cnt, uint8_t *r)> serial, char d) : serial(serial), designator(d)
 {
-    connection_method = StepstickParameters::UART;
+    connection_method = DriveParameters::UART;
     max_current= 3000;
     
     //we are not started yet
@@ -665,7 +665,7 @@ void TMC220X::init(uint16_t cs)
     this->resistor= THEKERNEL->config->value(motor_driver_control_checksum, cs, sense_resistor_checksum)->by_default(50)->as_number(); // in milliohms
     this->chopper_mode= THEKERNEL->config->value(motor_driver_control_checksum, cs, chopper_mode_checksum)->by_default(0)->as_number();
     
-    if (chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
         this->slave_addr= THEKERNEL->config->value(motor_driver_control_checksum, cs, slave_addr_checksum)->by_default(0)->as_int();
         THEKERNEL->streams->printf("TMC2209 using slave address %d for axis %c\n", this->slave_addr, designator);
     } // slave_addr defaults to 0, which is OK for TMC2208
@@ -717,7 +717,7 @@ void TMC220X::init(uint16_t cs)
     }
     
     // TMC2209 specific config
-    if (chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
         
         uint8_t tcoolthrs   = THEKERNEL->config->value(motor_driver_control_checksum, cs, stallguard_tcoolthrs_checksum)->by_default(0)->as_int();
         setCoolThreshold(tcoolthrs);
@@ -1169,7 +1169,7 @@ void TMC220X::setCoolThreshold(uint32_t threshold)
     this->tcoolthrs_register_value = threshold;
 
     //if started we directly send it to the motor
-    if (started && chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (started && chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
         transceive220X(TMC220X_WRITE|TMC220X_TCOOLTHRS_REGISTER,tcoolthrs_register_value);
     }
 }
@@ -1185,7 +1185,7 @@ void TMC220X::setStallguardThreshold(uint32_t threshold)
     this->sgthrs_register_value = threshold;
 
     //if started we directly send it to the motor
-    if (started && chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (started && chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
         transceive220X(TMC220X_WRITE|TMC220X_TCOOLTHRS_REGISTER,tcoolthrs_register_value);
     }
 }
@@ -1193,7 +1193,7 @@ void TMC220X::setStallguardThreshold(uint32_t threshold)
 uint8_t TMC220X::getStallguardResult(void)
 {
     //if we don't yet started there cannot be a current value
-    if (!started || chip_type != StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (!started || chip_type != DriveParameters::CHIP_TYPE::TMC2209) {
         return 0;
     }
     // Bits 9 and 0 will always show 0. 
@@ -1256,7 +1256,7 @@ void TMC220X::setCoolConf(bool seimin, uint8_t sedn, uint16_t semax, uint8_t seu
     coolconf_register_value |= (semin << TMC220X_COOLCONF_SEMIN_SHIFT);
 
     //if started we directly send it to the motor
-    if (started && chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+    if (started && chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
         transceive220X(TMC220X_WRITE|TMC220X_COOLCONF_REGISTER,coolconf_register_value);
     }
 }
@@ -1489,7 +1489,7 @@ void TMC220X::dump_status(StreamOutput *stream)
     uint8_t actu= (designator >= 'X' && designator <= 'Z') ? designator-'X' : designator-'A'+3;
 
     if (!this->write_only) {
-        stream->printf("designator %c [%d], Chip type TMC220%c\n", designator, actu, (chip_type == StepstickParameters::CHIP_TYPE::TMC2209) ? '9' : '8' );
+        stream->printf("designator %c [%d], Chip type TMC220%c\n", designator, actu, (chip_type == DriveParameters::CHIP_TYPE::TMC2209) ? '9' : '8' );
         
         if (this->isStandStill()) {
             stream->printf("INFO: Motor is standing still.\n");
@@ -1513,7 +1513,7 @@ void TMC220X::dump_status(StreamOutput *stream)
         stream->printf(" tpwmthrs register: %08lX (%ld)\n", tpwmthrs_register_value, tpwmthrs_register_value);
         stream->printf(" chopconf register: %08lX (%ld)\n", chopconf_register_value, chopconf_register_value);
         stream->printf(" pwmconf register: %08lX (%ld)\n", pwmconf_register_value, pwmconf_register_value);
-        if (chip_type == StepstickParameters::CHIP_TYPE::TMC2209) {
+        if (chip_type == DriveParameters::CHIP_TYPE::TMC2209) {
             unsigned long result= getStallguardResult();
             stream->printf(" stallguard result: %10lX (%ld)\n", result, result);
             stream->printf(" tcoolthrs register [L]: %08lX (%ld)\n", tcoolthrs_register_value, tcoolthrs_register_value);
