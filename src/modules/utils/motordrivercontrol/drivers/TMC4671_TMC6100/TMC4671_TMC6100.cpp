@@ -44,128 +44,28 @@
 #include "Config.h"
 #include "checksumm.h"
 #include "StepTicker.h"
+#include "utils.h"
 
 #define motor_driver_control_checksum   CHECKSUM("motor_driver_control")
 #define enable_pin_checksum             CHECKSUM("enable_pin")
 
 #define spi_cs_ctrl_pin_checksum        CHECKSUM("spi_cs_ctrl_pin")
 #define spi_cs_drv_pin_checksum         CHECKSUM("spi_cs_drv_pin")
+#define pid_torque_p_i_checksum         CHECKSUM("pid_torque_p_i")
+#define pid_flux_p_i_checksum           CHECKSUM("pid_flux_p_i")
+#define pid_velocity_p_i_checksum       CHECKSUM("pid_velocity_p_i")
+#define pid_position_p_i_checksum       CHECKSUM("pid_position_p_i")
+
+#define adc_mclk_a_checksum             CHECKSUM("adc_mclk_a")
+#define adc_mclk_b_checksum             CHECKSUM("adc_mclk_b")
+
+#define adc_mdec_b_a_checksum           CHECKSUM("adc_mdec_b_a")
+#define adc_i0_offset_checksum          CHECKSUM("adc_i0_offset")
+#define adc_i1_offset_checksum          CHECKSUM("adc_i1_offset")
 
 
 #define SPI_DEV_DRV     0
 #define SPI_DEV_CTRL    1
-
-//! return value for TMC4671.getOverTemperature() if there is a overtemperature situation in the TMC chip
-/*!
- * This warning indicates that the TCM chip is too warm.
- * It is still working but some parameters may be inferior.
- * You should do something against it.
- */
-#define TMC4671_OVERTEMPERATURE_PREWARING 1
-//! return value for TMC4671.getOverTemperature() if there is a overtemperature shutdown in the TMC chip
-/*!
- * This warning indicates that the TCM chip is too warm to operate and has shut down to prevent damage.
- * It will stop working until it cools down again.
- * If you encouter this situation you must do something against it. Like reducing the current or improving the PCB layout
- * and/or heat management.
- */
-#define TMC4671_OVERTEMPERATURE_SHUTDOWN 2
-
-//which values can be read out
-/*!
- * Selects to readout the microstep position from the motor.
- *\sa readStatus()
- */
-#define TMC4671_READOUT_POSITION 0
-/*!
- * Selects to read out the StallGuard value of the motor.
- *\sa readStatus()
- */
-#define TMC4671_READOUT_STALLGUARD 1
-/*!
- * Selects to read out the current current setting (acc. to CoolStep) and the upper bits of the StallGuard value from the motor.
- *\sa readStatus(), setCurrent()
- */
-#define TMC4671_READOUT_CURRENT 3
-
-/*!
- * Define to set the minimum current for CoolStep operation to 1/2 of the selected CS minium.
- *\sa setCoolStepConfiguration()
- */
-#define COOL_STEP_HALF_CS_LIMIT 0
-/*!
- * Define to set the minimum current for CoolStep operation to 1/4 of the selected CS minium.
- *\sa setCoolStepConfiguration()
- */
-#define COOL_STEP_QUARTDER_CS_LIMIT 1
-
-
-//some default values used in initialization
-#define DEFAULT_MICROSTEPPING_VALUE 32
-
-//TMC4671 register definitions
-#define DRIVER_CONTROL_REGISTER            0x00000ul
-#define CHOPPER_CONFIG_REGISTER            0x80000ul
-#define COOL_STEP_REGISTER                 0xA0000ul
-#define STALL_GUARD2_LOAD_MEASURE_REGISTER 0xC0000ul
-#define DRIVER_CONFIG_REGISTER             0xE0000ul
-
-#define REGISTER_BIT_PATTERN               0xFFFFFul
-
-//definitions for the driver control register DRVCTL
-#define MICROSTEPPING_PATTERN          0x000Ful
-#define STEP_INTERPOLATION             0x0200ul
-#define DOUBLE_EDGE_STEP               0x0100ul
-
-//definitions for the driver config register DRVCONF
-#define READ_MICROSTEP_POSITION        0x0000ul
-#define READ_STALL_GUARD_READING       0x0010ul
-#define READ_STALL_GUARD_AND_COOL_STEP 0x0020ul
-#define READ_SELECTION_PATTERN         0x0030ul
-#define VSENSE                         0x0040ul
-
-//definitions for the chopper config register
-#define CHOPPER_MODE_STANDARD          0x00000ul
-#define CHOPPER_MODE_T_OFF_FAST_DECAY  0x04000ul
-#define T_OFF_PATTERN                  0x0000ful
-#define RANDOM_TOFF_TIME               0x02000ul
-#define BLANK_TIMING_PATTERN           0x18000ul
-#define BLANK_TIMING_SHIFT             15
-#define HYSTERESIS_DECREMENT_PATTERN   0x01800ul
-#define HYSTERESIS_DECREMENT_SHIFT     11
-#define HYSTERESIS_LOW_VALUE_PATTERN   0x00780ul
-#define HYSTERESIS_LOW_SHIFT           7
-#define HYSTERESIS_START_VALUE_PATTERN 0x00078ul
-#define HYSTERESIS_START_VALUE_SHIFT   4
-#define T_OFF_TIMING_PATERN            0x0000Ful
-
-//definitions for cool step register
-#define MINIMUM_CURRENT_FOURTH          0x8000ul
-#define CURRENT_DOWN_STEP_SPEED_PATTERN 0x6000ul
-#define SE_MAX_PATTERN                  0x0F00ul
-#define SE_CURRENT_STEP_WIDTH_PATTERN   0x0060ul
-#define SE_MIN_PATTERN                  0x000Ful
-
-//definitions for stall guard2 current register
-#define STALL_GUARD_FILTER_ENABLED          0x10000ul
-#define STALL_GUARD_TRESHHOLD_VALUE_PATTERN 0x17F00ul
-#define CURRENT_SCALING_PATTERN             0x0001Ful
-#define STALL_GUARD_CONFIG_PATTERN          0x17F00ul
-#define STALL_GUARD_VALUE_PATTERN           0x07F00ul
-
-//definitions for the input from the TCM260
-#define STATUS_STALL_GUARD_STATUS        0x00001ul
-#define STATUS_OVER_TEMPERATURE_SHUTDOWN 0x00002ul
-#define STATUS_OVER_TEMPERATURE_WARNING  0x00004ul
-#define STATUS_SHORT_TO_GROUND_A         0x00008ul
-#define STATUS_SHORT_TO_GROUND_B         0x00010ul
-#define STATUS_OPEN_LOAD_A               0x00020ul
-#define STATUS_OPEN_LOAD_B               0x00040ul
-#define STATUS_STAND_STILL               0x00080ul
-#define READOUT_VALUE_PATTERN            0xFFC00ul
-
-//debuging output
-//#define DEBUG
 
 /*
  * Constructor
@@ -186,22 +86,6 @@ TMC4671_TMC6100::TMC4671_TMC6100(std::function<int(uint8_t *b, int cnt, uint8_t 
  */
 void TMC4671_TMC6100::init(uint16_t cs)
 {
-    // read chip specific config entries
-
-    // //setting the default register values
-    // driver_control_register_value = DRIVER_CONTROL_REGISTER;
-    // chopper_config_register = CHOPPER_CONFIG_REGISTER;
-    // cool_step_register_value = COOL_STEP_REGISTER;
-    // stall_guard2_current_register_value = STALL_GUARD2_LOAD_MEASURE_REGISTER;
-    // driver_configuration_register_value = DRIVER_CONFIG_REGISTER | READ_STALL_GUARD_READING;
-
-    // //set the initial values
-    // send262(driver_control_register_value);
-    // send262(chopper_config_register);
-    // send262(cool_step_register_value);
-    // send262(stall_guard2_current_register_value);
-    // send262(driver_configuration_register_value);
-
     spi_cs_ctrl_pin = new Pin();
     spi_cs_ctrl_pin->from_string(THEKERNEL->config->value( motor_driver_control_checksum, cs, spi_cs_ctrl_pin_checksum)->by_default("nc")->as_string())->as_output();
 
@@ -211,6 +95,16 @@ void TMC4671_TMC6100::init(uint16_t cs)
 
     enable_pin = new Pin();
     enable_pin->from_string(THEKERNEL->config->value( motor_driver_control_checksum, cs, enable_pin_checksum)->by_default("nc")->as_string())->as_output();
+
+    this->pid_torque_p_i= THEKERNEL->config->value(motor_driver_control_checksum, cs, pid_torque_p_i_checksum)->required()->as_uint();
+    this->pid_flux_p_i= THEKERNEL->config->value(motor_driver_control_checksum, cs, pid_flux_p_i_checksum)->required()->as_uint();
+    this->pid_velocity_p_i= THEKERNEL->config->value(motor_driver_control_checksum, cs, pid_velocity_p_i_checksum)->required()->as_uint();
+    this->pid_position_p_i= THEKERNEL->config->value(motor_driver_control_checksum, cs, pid_position_p_i_checksum)->required()->as_uint();
+    this->adc_mclk_a= THEKERNEL->config->value(motor_driver_control_checksum, cs, adc_mclk_a_checksum)->required()->as_uint();
+    this->adc_mclk_b= THEKERNEL->config->value(motor_driver_control_checksum, cs, adc_mclk_b_checksum)->required()->as_uint();
+    this->adc_mdec_b_a= THEKERNEL->config->value(motor_driver_control_checksum, cs, adc_mdec_b_a_checksum)->required()->as_uint();
+    this->adc_i0_offset= THEKERNEL->config->value(motor_driver_control_checksum, cs, adc_i0_offset_checksum)->required()->as_uint();
+    this->adc_i1_offset= THEKERNEL->config->value(motor_driver_control_checksum, cs, adc_i1_offset_checksum)->required()->as_uint();
 
     if(!spi_cs_ctrl_pin->connected()) {
         printf("MotorDriverControl ERROR: control chip select not defined\n");
@@ -236,69 +130,62 @@ void TMC4671_TMC6100::init(uint16_t cs)
         (1 << TMC6100_FAULTDIRECT_SHIFT)  | // Fault output shows each protective action
         (1 << TMC6100_CURRENT_ZERO_SHIFT)   // Disable current amplifier)
     );
-    printf("MotorDriverControl INFO: Drive configuration written\n");
+    
+    // Motor type & pole pairs
+    send262(SPI_DEV_CTRL, TMC4671_MOTOR_TYPE_N_POLE_PAIRS, 0x00030002); //0x00030002
 
-    // Motor type &  PWM configuration
-    send262(SPI_DEV_CTRL, TMC4671_MOTOR_TYPE_N_POLE_PAIRS, 0x00030008);
+    // PWM configuration
     send262(SPI_DEV_CTRL, TMC4671_PWM_POLARITIES, 0x00000000);
-    send262(SPI_DEV_CTRL, TMC4671_PWM_MAXCNT, 0x000003E7);
+    send262(SPI_DEV_CTRL, TMC4671_PWM_MAXCNT, 0x00000F9F);
     send262(SPI_DEV_CTRL, TMC4671_PWM_BBM_H_BBM_L, 0x00001919);
     send262(SPI_DEV_CTRL, TMC4671_PWM_SV_CHOP, 0x00000007);
-    printf("MotorDriverControl INFO: Control motor type & PWM configuration written\n");
-
+    
     // ADC configuration
-    send262(SPI_DEV_CTRL, TMC4671_ADC_I_SELECT, 0x18000100);
+    send262(SPI_DEV_CTRL, TMC4671_ADC_I_SELECT, 0x09000100);
     send262(SPI_DEV_CTRL, TMC4671_dsADC_MCFG_B_MCFG_A, 0x00100010);
-    send262(SPI_DEV_CTRL, TMC4671_dsADC_MCLK_A, 0x0051EB85);
-    send262(SPI_DEV_CTRL, TMC4671_dsADC_MCLK_B, 0x0051EB85);
-    send262(SPI_DEV_CTRL, TMC4671_dsADC_MDEC_B_MDEC_A, 0x00540054);
-    send262(SPI_DEV_CTRL, TMC4671_ADC_I0_SCALE_OFFSET, 0x010081CB);
-    send262(SPI_DEV_CTRL, TMC4671_ADC_I1_SCALE_OFFSET, 0x010081F9);
-    printf("MotorDriverControl INFO: Control ADC configuration written\n");
-
-    // Digital hall settings
-    send262(SPI_DEV_CTRL,  TMC4671_HALL_MODE, 0x00001001);
-    send262(SPI_DEV_CTRL,  TMC4671_HALL_PHI_E_PHI_M_OFFSET, 0x1F400000);
-    printf("MotorDriverControl INFO: Control Hall configuration written\n");
-
+    send262(SPI_DEV_CTRL, TMC4671_dsADC_MCLK_A, this->adc_mclk_a);
+    send262(SPI_DEV_CTRL, TMC4671_dsADC_MCLK_B, this->adc_mclk_b);
+    send262(SPI_DEV_CTRL, TMC4671_dsADC_MDEC_B_MDEC_A, this->adc_mdec_b_a);
+    send262(SPI_DEV_CTRL, TMC4671_ADC_I0_SCALE_OFFSET, this->adc_i0_offset);
+    send262(SPI_DEV_CTRL, TMC4671_ADC_I1_SCALE_OFFSET, this->adc_i1_offset);
+    
     // ABN encoder settings
     send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_MODE, 0x00000000);
-    send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_PPR, 0x00000800);
-    send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_COUNT, 0x00000539);
+    send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_PPR, 0x00003600);
+    send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_COUNT, 0x00000000);
     send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_PHI_E_PHI_M_OFFSET, 0x00000000);
-    printf("MotorDriverControl INFO: Control ABN configuration written\n");
-
+    
     // Limits
-    send262(SPI_DEV_CTRL, TMC4671_PID_TORQUE_FLUX_LIMITS, 2000);
-    printf("MotorDriverControl INFO: Control limits configuration written\n");
+    send262(SPI_DEV_CTRL, TMC4671_PID_TORQUE_FLUX_LIMITS, 0x000007D0);
+    send262(SPI_DEV_CTRL, TMC4671_PID_VELOCITY_LIMIT, 0x000003E8);
+    send262(SPI_DEV_CTRL, TMC4671_PID_ACCELERATION_LIMIT, 0x00002710);
     
     // PI settings
-    //setTorquePi(torqueP, torqueI);
-    //setFluxPi(fluxP, fluxI);
-    //setVelocityPi(velocityP, velocityI);
+    send262(SPI_DEV_CTRL, TMC4671_PID_TORQUE_P_TORQUE_I, this->pid_torque_p_i);
+    send262(SPI_DEV_CTRL, TMC4671_PID_FLUX_P_FLUX_I, this->pid_flux_p_i);
+    send262(SPI_DEV_CTRL, TMC4671_PID_VELOCITY_P_VELOCITY_I, this->pid_velocity_p_i);
+    send262(SPI_DEV_CTRL, TMC4671_PID_POSITION_P_POSITION_I, this->pid_position_p_i);
 
     // Init encoder (mode 0)
     send262(SPI_DEV_CTRL, TMC4671_MODE_RAMP_MODE_MOTION, 0x00000008);
     send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_PHI_E_PHI_M_OFFSET, 0x00000000);
     send262(SPI_DEV_CTRL, TMC4671_PHI_E_SELECTION, 0x00000001);
     send262(SPI_DEV_CTRL, TMC4671_PHI_E_EXT, 0x00000000);
-    send262(SPI_DEV_CTRL, TMC4671_UQ_UD_EXT, 0x000007D0);
-    printf("MotorDriverControl INFO: Control init encoder\n");
-
-//todo: add delay?
+    send262(SPI_DEV_CTRL, TMC4671_UQ_UD_EXT, 0x00000FD0);
+    safe_delay_ms(1000);
+    
+    send262(SPI_DEV_CTRL, TMC4671_PID_POSITION_ACTUAL, 0x00000000);
+    send262(SPI_DEV_CTRL, TMC4671_PID_POSITION_TARGET, 0x00000000); //Also set target pos to avoid unexpected movements
     send262(SPI_DEV_CTRL, TMC4671_ABN_DECODER_COUNT, 0x00000000);
-    printf("MotorDriverControl INFO: Control set decoder count\n");
-
+    safe_delay_ms(1000);
+    
     // Feedback selection
-    send262(SPI_DEV_CTRL, TMC4671_PHI_E_SELECTION, 5); // 3 is encoder, 5 is hal
-    send262(SPI_DEV_CTRL, TMC4671_VELOCITY_SELECTION, 5);
+    send262(SPI_DEV_CTRL, TMC4671_PHI_E_SELECTION, 0x00000003);
+    send262(SPI_DEV_CTRL, TMC4671_VELOCITY_SELECTION, 0x00000009);
+    send262(SPI_DEV_CTRL, TMC4671_POSITION_SELECTION, 0x00000009);
     printf("MotorDriverControl INFO: Control feedback selection configuration written\n");
 
-
-
-
-
-
+    
     started = true;
 
     // set_enable(false);
