@@ -24,16 +24,17 @@ void ConfigValue:: clear()
     this->check_sums[0] = 0x0000;
     this->check_sums[1] = 0x0000;
     this->check_sums[2] = 0x0000;
-    this->default_double= 0.0F;
-    this->default_int= 0;
-    this->value= "";
+    this->default_double = 0.0F;
+    this->default_int = 0;
+    this->default_uint = 0;
+    this->value = "";
 }
 
 ConfigValue::ConfigValue(uint16_t *cs) {
     memcpy(this->check_sums, cs, sizeof(this->check_sums));
     this->found = false;
     this->default_set = false;
-    this->value= "";
+    this->value = "";
 }
 
 ConfigValue::ConfigValue(const ConfigValue& to_copy)
@@ -95,6 +96,22 @@ int ConfigValue::as_int()
     }
 }
 
+unsigned int ConfigValue::as_uint()
+{
+    if( this->found == false && this->default_set == true ) {
+        return this->default_uint;
+    } else {
+        char *endptr = NULL;
+        string str = remove_non_number(this->value);
+        const char *cp= str.c_str();
+        unsigned int result = strtoul(cp, &endptr, 10);
+        if( endptr <= cp ) {
+            printErrorandExit("config setting with value '%s' and checksums[%04X,%04X,%04X] is not a valid int, please see http://smoothieware.org/configuring-smoothie\r\n", this->value.c_str(), this->check_sums[0], this->check_sums[1], this->check_sums[2] );
+        }
+        return result;
+    }
+}
+
 std::string ConfigValue::as_string()
 {
     return this->value;
@@ -114,6 +131,13 @@ ConfigValue *ConfigValue::by_default(int val)
     this->default_set = true;
     this->default_int = val;
     this->default_double = val; // we need to set both becuase sometimes an integer is passed when it should be a float
+    return this;
+}
+
+ConfigValue *ConfigValue::by_default(unsigned int val)
+{
+    this->default_set = true;
+    this->default_uint = val;
     return this;
 }
 

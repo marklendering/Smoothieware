@@ -21,12 +21,14 @@ class ConfigValue{
         ConfigValue* required();
         float as_number();
         int as_int();
+        unsigned int as_uint();
         bool as_bool();
         string as_string();
 
         ConfigValue* by_default(float val);
         ConfigValue* by_default(string val);
         ConfigValue* by_default(int val);
+        ConfigValue* by_default(unsigned int val);
         bool is_inverted();
 
 
@@ -40,6 +42,7 @@ class ConfigValue{
         bool has_characters( const char* mask );
         string value;
         int default_int;
+        unsigned int default_uint;
         float default_double;
         uint16_t check_sums[3];
         bool found;
